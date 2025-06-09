@@ -746,39 +746,6 @@ class SpatialTransformer(nn.Module):
         self.mode = mode
         self.size = size
 
-        # # create sampling grid
-        # vectors = [torch.arange(0, s) for s in size]
-        # grids = torch.meshgrid(vectors)
-        # grid = torch.stack(grids)
-        # grid = torch.unsqueeze(grid, 0)
-        # grid = grid.type(torch.FloatTensor)
-
-        # # registering the grid as a buffer cleanly moves it to the GPU, but it also
-        # # adds it to the state dict. this is annoying since everything in the state dict
-        # # is included when saving weights to disk, so the model files are way bigger
-        # # than they need to be. so far, there does not appear to be an elegant solution.
-        # # see: https://discuss.pytorch.org/t/how-to-register-buffer-without-polluting-state-dict
-        # self.register_buffer('grid', grid)
-
-    # def forward(self, src, flow):
-    #     # new locations
-    #     new_locs = self.grid + flow
-    #     shape = flow.shape[2:]
-
-    #     # need to normalize grid values to [-1, 1] for resampler
-    #     for i in range(len(shape)):
-    #         new_locs[:, i, ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
-
-    #     # move channels dim to last position
-    #     # also not sure why, but the channels need to be reversed
-    #     if len(shape) == 2:
-    #         new_locs = new_locs.permute(0, 2, 3, 1)
-    #         new_locs = new_locs[..., [1, 0]]
-    #     elif len(shape) == 3:
-    #         new_locs = new_locs.permute(0, 2, 3, 4, 1)
-    #         new_locs = new_locs[..., [2, 1, 0]]
-    #     return nnf.grid_sample(src, new_locs, align_corners=True, mode=self.mode)
-
     def forward(self, src, translation):
         # new locations
         B, C, H, W = src.shape
@@ -887,9 +854,22 @@ CONFIGS = {
 }
 
 
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+import torch
+import numpy as np
+from torch.utils.data import Dataset
+import cv2
+from skimage.transform import warp
+from skimage.transform import AffineTransform as AFT
+import os
+from torch.utils.data import DataLoader
+
+import torchvision.transforms.functional as TF
+from torchvision import transforms
 
 class NCCLoss(nn.Module):
     def __init__(self, win_size=9, eps=1e-5):
@@ -930,13 +910,6 @@ class NCCLoss(nn.Module):
         return 1-torch.mean(cc)  # negative because we minimize loss
 
 
-import torch
-from torch.utils.data import Dataset
-import cv2
-from skimage.transform import warp
-from skimage.transform import AffineTransform as AFT
-import os
-from torch.utils.data import DataLoader
 
 def shift_crop_image(stat, mov , shifts):
     stat = warp(stat, AFT(translation = shifts),order = 3)
@@ -950,8 +923,7 @@ def shift_crop_image(stat, mov , shifts):
     temp_mov = mov[y_slice, x_slice]
     return temp_stat, temp_mov
 
-import numpy as np
-import torch
+
 
 class BrightestCenterSquareCrop:
     def __call__(self, image):
@@ -983,8 +955,7 @@ class BrightestCenterSquareCrop:
         cropped = image[:, top:top+crop_size, left:left+crop_size]
         return cropped
 
-import torch
-import torchvision.transforms.functional as TF
+
 
 class ResizeToMultiple:
     def __init__(self, divisor=8):
@@ -999,7 +970,6 @@ class ResizeToMultiple:
         new_W = ((W + self.divisor - 1) // self.divisor) * self.divisor
         return TF.resize(tensor, [new_H, new_W])
 
-from torchvision import transforms
 
 # transform = transforms.Compose([
 #     transforms.ToTensor(),
