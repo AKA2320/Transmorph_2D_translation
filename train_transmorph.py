@@ -10,7 +10,6 @@ transform = transforms.Compose([
     BrightestCenterSquareCrop(),
     transforms.Resize((64, 64)),
 ])
-import torch
 
 def normalize(tensor: torch.Tensor) -> torch.Tensor:
     """
