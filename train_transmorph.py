@@ -13,10 +13,22 @@ transform = transforms.Compose([
 import torch
 
 def normalize(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Normalize a PyTorch tensor to the [0, 1] range.
+
+    Parameters:
+    - tensor (torch.Tensor): Input image tensor (any shape, e.g., CxHxW or HxW)
+
+    Returns:
+    - torch.Tensor: Normalized tensor with values in [0, 1]
+    """
     min_val = tensor.min()
     max_val = tensor.max()
+
+    # Prevent division by zero if all values are the same
     if max_val == min_val:
         return torch.zeros_like(tensor)
+
     return (tensor - min_val) / (max_val - min_val)
 
 def validate(model, val_loader, loss_fn, warper, device):
