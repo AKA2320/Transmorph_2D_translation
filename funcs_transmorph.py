@@ -746,6 +746,39 @@ class SpatialTransformer(nn.Module):
         self.mode = mode
         self.size = size
 
+        # # create sampling grid
+        # vectors = [torch.arange(0, s) for s in size]
+        # grids = torch.meshgrid(vectors)
+        # grid = torch.stack(grids)
+        # grid = torch.unsqueeze(grid, 0)
+        # grid = grid.type(torch.FloatTensor)
+
+        # # registering the grid as a buffer cleanly moves it to the GPU, but it also
+        # # adds it to the state dict. this is annoying since everything in the state dict
+        # # is included when saving weights to disk, so the model files are way bigger
+        # # than they need to be. so far, there does not appear to be an elegant solution.
+        # # see: https://discuss.pytorch.org/t/how-to-register-buffer-without-polluting-state-dict
+        # self.register_buffer('grid', grid)
+
+    # def forward(self, src, flow):
+    #     # new locations
+    #     new_locs = self.grid + flow
+    #     shape = flow.shape[2:]
+
+    #     # need to normalize grid values to [-1, 1] for resampler
+    #     for i in range(len(shape)):
+    #         new_locs[:, i, ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
+
+    #     # move channels dim to last position
+    #     # also not sure why, but the channels need to be reversed
+    #     if len(shape) == 2:
+    #         new_locs = new_locs.permute(0, 2, 3, 1)
+    #         new_locs = new_locs[..., [1, 0]]
+    #     elif len(shape) == 3:
+    #         new_locs = new_locs.permute(0, 2, 3, 4, 1)
+    #         new_locs = new_locs[..., [2, 1, 0]]
+    #     return nnf.grid_sample(src, new_locs, align_corners=True, mode=self.mode)
+
     def forward(self, src, translation):
         # new locations
         B, C, H, W = src.shape
@@ -854,22 +887,9 @@ CONFIGS = {
 }
 
 
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-import torch
-import numpy as np
-from torch.utils.data import Dataset
-import cv2
-from skimage.transform import warp
-from skimage.transform import AffineTransform as AFT
-import os
-from torch.utils.data import DataLoader
-
-import torchvision.transforms.functional as TF
-from torchvision import transforms
 
 class NCCLoss(nn.Module):
     def __init__(self, win_size=9, eps=1e-5):
@@ -907,9 +927,16 @@ class NCCLoss(nn.Module):
         J_var = J2_sum - 2 * u_J * J_sum + u_J * u_J * win_size
 
         cc = (cross ** 2) / (I_var * J_var + self.eps)
-        return 1-torch.mean(cc)  # negative because we minimize loss
+        return torch.mean(cc)  # negative because we minimize loss
 
 
+import torch
+from torch.utils.data import Dataset
+import cv2
+from skimage.transform import warp
+from skimage.transform import AffineTransform as AFT
+import os
+from torch.utils.data import DataLoader
 
 def shift_crop_image(stat, mov , shifts):
     stat = warp(stat, AFT(translation = shifts),order = 3)
@@ -923,7 +950,8 @@ def shift_crop_image(stat, mov , shifts):
     temp_mov = mov[y_slice, x_slice]
     return temp_stat, temp_mov
 
-
+import numpy as np
+import torch
 
 class BrightestCenterSquareCrop:
     def __call__(self, image):
@@ -955,7 +983,8 @@ class BrightestCenterSquareCrop:
         cropped = image[:, top:top+crop_size, left:left+crop_size]
         return cropped
 
-
+import torch
+import torchvision.transforms.functional as TF
 
 class ResizeToMultiple:
     def __init__(self, divisor=8):
@@ -970,6 +999,7 @@ class ResizeToMultiple:
         new_W = ((W + self.divisor - 1) // self.divisor) * self.divisor
         return TF.resize(tensor, [new_H, new_W])
 
+from torchvision import transforms
 
 # transform = transforms.Compose([
 #     transforms.ToTensor(),
@@ -977,11 +1007,11 @@ class ResizeToMultiple:
 #     # Ensure H, W are divisible by 8 # if needed
 # ])
 
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    BrightestCenterSquareCrop(),
-    transforms.Resize((128, 128)),
-])
+# transform = transforms.Compose([
+#     transforms.ToTensor(),
+#     BrightestCenterSquareCrop(),
+#     transforms.Resize((128, 128)),
+# ])
 
 
 
@@ -998,7 +1028,10 @@ class imagepairdataset(Dataset):
         filepath = os.path.join(self.root_dir, self.filenames[idx])
         image = cv2.imread(filepath, cv2.IMREAD_UNCHANGED)
 
-        static, moving = shift_crop_image(image, image, np.random.uniform(-3,3,size=2))
+        if np.random.randint(0,10)>5:
+            static, moving = shift_crop_image(image, image, np.random.randint(-5,5,size=2))
+        else:
+            static, moving = shift_crop_image(image, image, np.random.uniform(-3,3,size=2))
         # static = torch.from_numpy(static)
         # moving = torch.from_numpy(moving)
         if self.transform:

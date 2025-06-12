@@ -40,7 +40,7 @@ def get_2DTransMorph_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
