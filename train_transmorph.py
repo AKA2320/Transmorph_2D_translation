@@ -234,6 +234,7 @@ def validate(model, val_loader, loss_fn, warper, device):
         for static, moving, shift_vals in val_loader:
             static = normalize(static.to(device)).double()
             moving = normalize(moving.to(device)).double()
+            shift_vals = shift_vals.to(DEVICE).double()
 
             moved_image, pred_translation = model(torch.cat([static, moving], axis=1))
             warped = warper(moving, pred_translation)
@@ -273,6 +274,7 @@ for epoch in range(EPOCHS):
 
     for static, moving, shift_vals in train_loader:
         static, moving = normalize(static.to(DEVICE).double()), normalize(moving.to(DEVICE).double())
+        shift_vals = shift_vals.to(DEVICE).double()
 
         moved_image, pred_translation = model(torch.cat([static,moving],axis=1))  # (B, 2)
         warped = warper(moving, pred_translation)
