@@ -1,5 +1,6 @@
 from funcs_transmorph import *
 import torch
+from torchvision import transforms
 from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -230,17 +231,20 @@ def validate(model, val_loader, loss_fn, warper, device):
     model.eval()
     total_val_loss = 0
     with torch.no_grad():
-        for static, moving in val_loader:
-            static = static.to(device).double()
-            moving = moving.to(device).double()
+        for static, moving, shift_vals in val_loader:
+            static = normalize(static.to(device)).double()
+            moving = normalize(moving.to(device)).double()
 
             moved_image, pred_translation = model(torch.cat([static, moving], axis=1))
             warped = warper(moving, pred_translation)
-            loss = 1 - loss_fn(normalize(warped), normalize(static))
-            total_val_loss += loss.item()
+            loss_ncc = 1 - loss_fn(normalize(warped).double(), normalize(static).double())
+            loss_trans = F.mse_loss(shift_vals, pred_translation)
+            weighted_loss = ncc_loss_weight * loss_ncc + trans_loss_weight * loss_trans
+
+            total_val_loss += weighted_loss.item()
     return total_val_loss / len(val_loader)
 
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 train_dataset = imagepairdataset(root_dir='train', transform = transform)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 val_dataset = imagepairdataset(root_dir='val', transform=transform)
@@ -259,29 +263,34 @@ ssim_loss_fn= SSIM(data_range=1, size_average=True, channel=1).double()
 ms_ssim_loss_fn= MS_SSIM(data_range=1, size_average=True, channel=1).double()
 warper = SpatialTransformer(size=(2, 2)).to(DEVICE)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+ncc_loss_weight = 0.3
+trans_loss_weight = 0.7
 
 for epoch in range(EPOCHS):
     model.train()
     total_loss = 0
     ncc_total_loss = 0
 
-    for static, moving in train_loader:
+    for static, moving, shift_vals in train_loader:
         static, moving = normalize(static.to(DEVICE).double()), normalize(moving.to(DEVICE).double())
 
         moved_image, pred_translation = model(torch.cat([static,moving],axis=1))  # (B, 2)
         warped = warper(moving, pred_translation)
 
         loss_ncc = 1 - ncc_loss_fn(normalize(warped).double(), normalize(static).double())
+        loss_trans = F.mse_loss(shift_vals, pred_translation)
+        # print(loss_ncc, loss_trans)
+        weighted_loss = ncc_loss_weight * loss_ncc + trans_loss_weight * loss_trans
         # max_range = int(max(warped.max(),static.max()))
         # ssim_loss_fn= SSIM(data_range=1, size_average=True, channel=1).double()
         # loss = 1 - ssim_loss_fn(normalize(warped).double(), normalize(static).double())
         # loss = 1 - ms_ssim_loss_fn(normalize(warped).double(), normalize(static).double())
 
         optimizer.zero_grad()
-        loss_ncc.backward()
+        weighted_loss.backward()
         optimizer.step()
 
-        total_loss += loss_ncc.item()
+        total_loss += weighted_loss.item()
         # ncc_total_loss += loss_ncc.item()
         break
 

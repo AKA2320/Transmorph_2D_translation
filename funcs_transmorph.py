@@ -999,7 +999,7 @@ class ResizeToMultiple:
         new_W = ((W + self.divisor - 1) // self.divisor) * self.divisor
         return TF.resize(tensor, [new_H, new_W])
 
-from torchvision import transforms
+
 
 # transform = transforms.Compose([
 #     transforms.ToTensor(),
@@ -1029,13 +1029,15 @@ class imagepairdataset(Dataset):
         image = cv2.imread(filepath, cv2.IMREAD_UNCHANGED)
 
         if np.random.randint(0,10)>5:
-            static, moving = shift_crop_image(image, image, np.random.randint(-5,5,size=2))
+            shift_vals = np.random.randint(-5,5,size=2)
+            static, moving = shift_crop_image(image, image, shift_vals)
         else:
-            static, moving = shift_crop_image(image, image, np.random.uniform(-3,3,size=2))
+            shift_vals = np.random.uniform(-3,3,size=2)
+            static, moving = shift_crop_image(image, image, shift_vals)
         # static = torch.from_numpy(static)
         # moving = torch.from_numpy(moving)
         if self.transform:
             static, moving = self.transform(static), self.transform(moving)
 
-        return static, moving  # (moving, fixed)
+        return static, moving, shift_vals*2  # (moving, fixed)
 
