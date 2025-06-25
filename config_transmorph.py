@@ -68,7 +68,7 @@ def get_2DTransMorphNoRelativePosEmbd_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -96,7 +96,7 @@ def get_2DTransMorphSin_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -124,7 +124,7 @@ def get_2DTransMorphLrn_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -155,7 +155,7 @@ def get_2DTransMorphNoConvSkip_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -187,7 +187,7 @@ def get_2DTransMorphNoTransSkip_config():
     config.embed_dim = 96
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 8, 8)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -246,7 +246,7 @@ def get_2DTransMorphLarge_config():
     config.embed_dim = 128
     config.depths = (2, 2, 12, 2)
     config.num_heads = (4, 4, 8, 16)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -274,7 +274,7 @@ def get_2DTransMorphSmall_config():
     config.embed_dim = 48
     config.depths = (2, 2, 4, 2)
     config.num_heads = (4, 4, 4, 4)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False
@@ -302,7 +302,7 @@ def get_2DTransMorphTiny_config():
     config.embed_dim = 6
     config.depths = (2, 2, 4, 2)
     config.num_heads = (2, 2, 4, 4)
-    config.window_size = (8, 8)
+    config.window_size = (2, 13)
     config.mlp_ratio = 4
     config.pat_merg_rf = 4
     config.qkv_bias = False

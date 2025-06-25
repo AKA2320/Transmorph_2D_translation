@@ -1001,20 +1001,6 @@ class ResizeToMultiple:
 
 
 
-# transform = transforms.Compose([
-#     transforms.ToTensor(),
-#     transforms.Resize((32, 32)),
-#     # Ensure H, W are divisible by 8 # if needed
-# ])
-
-# transform = transforms.Compose([
-#     transforms.ToTensor(),
-#     BrightestCenterSquareCrop(),
-#     transforms.Resize((128, 128)),
-# ])
-
-
-
 class imagepairdataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
@@ -1028,11 +1014,11 @@ class imagepairdataset(Dataset):
         filepath = os.path.join(self.root_dir, self.filenames[idx])
         image = cv2.imread(filepath, cv2.IMREAD_UNCHANGED)
 
-        if np.random.randint(0,10)>5:
-            shift_vals = np.random.randint(-5,5,size=2)
+        if np.random.randint(0,10)>7:
+            shift_vals = np.random.randint(-8,8,size=2)
             static, moving = shift_crop_image(image, image, shift_vals)
         else:
-            shift_vals = np.random.uniform(-3,3,size=2)
+            shift_vals = np.random.uniform(-5,5,size=2)
             static, moving = shift_crop_image(image, image, shift_vals)
         # static = torch.from_numpy(static)
         # moving = torch.from_numpy(moving)
