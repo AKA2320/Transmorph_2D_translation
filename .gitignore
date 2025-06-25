@@ -3,6 +3,8 @@ val/
 *.pt
 env_model_train/
 exper*.py
+exper*.ipynb
 .DS_store
 *.pyc
 __pycache__/
+models/
