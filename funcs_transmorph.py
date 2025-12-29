@@ -19,13 +19,19 @@ import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from timm.layers import DropPath, trunc_normal_, to_3tuple, to_2tuple
-from torch.distributions.normal import Normal
+# from torch.distributions.normal import Normal
 import torch.nn.functional as nnf
 import numpy as np
-import torch
-import torch.nn as nn
 from config_transmorph import *
-
+import torch.nn.functional as F
+import torchvision.transforms.functional as TF
+from torch.utils.data import Dataset
+import cv2
+from skimage.transform import warp
+from skimage.transform import AffineTransform as AFT
+import os
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 # import models.configs_TransMorph as configs
 
 class Mlp(nn.Module):
@@ -745,40 +751,6 @@ class SpatialTransformer(nn.Module):
 
         self.mode = mode
         self.size = size
-
-        # # create sampling grid
-        # vectors = [torch.arange(0, s) for s in size]
-        # grids = torch.meshgrid(vectors)
-        # grid = torch.stack(grids)
-        # grid = torch.unsqueeze(grid, 0)
-        # grid = grid.type(torch.FloatTensor)
-
-        # # registering the grid as a buffer cleanly moves it to the GPU, but it also
-        # # adds it to the state dict. this is annoying since everything in the state dict
-        # # is included when saving weights to disk, so the model files are way bigger
-        # # than they need to be. so far, there does not appear to be an elegant solution.
-        # # see: https://discuss.pytorch.org/t/how-to-register-buffer-without-polluting-state-dict
-        # self.register_buffer('grid', grid)
-
-    # def forward(self, src, flow):
-    #     # new locations
-    #     new_locs = self.grid + flow
-    #     shape = flow.shape[2:]
-
-    #     # need to normalize grid values to [-1, 1] for resampler
-    #     for i in range(len(shape)):
-    #         new_locs[:, i, ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
-
-    #     # move channels dim to last position
-    #     # also not sure why, but the channels need to be reversed
-    #     if len(shape) == 2:
-    #         new_locs = new_locs.permute(0, 2, 3, 1)
-    #         new_locs = new_locs[..., [1, 0]]
-    #     elif len(shape) == 3:
-    #         new_locs = new_locs.permute(0, 2, 3, 4, 1)
-    #         new_locs = new_locs[..., [2, 1, 0]]
-    #     return nnf.grid_sample(src, new_locs, align_corners=True, mode=self.mode)
-
     def forward(self, src, translation):
         # new locations
         B, C, H, W = src.shape
@@ -874,22 +846,9 @@ class TransMorph(nn.Module):
         return out, tran_flow
 
 CONFIGS = {
-    'TransMorph': get_2DTransMorph_config(),
-    'TransMorph-No-Conv-Skip': get_2DTransMorphNoConvSkip_config(),
-    'TransMorph-No-Trans-Skip': get_2DTransMorphNoTransSkip_config(),
-    'TransMorph-No-Skip': get_2DTransMorphNoSkip_config(),
-    'TransMorph-Lrn': get_2DTransMorphLrn_config(),
-    'TransMorph-Sin': get_2DTransMorphSin_config(),
-    'TransMorph-No-RelPosEmbed': get_2DTransMorphNoRelativePosEmbd_config(),
-    'TransMorph-Large': get_2DTransMorphLarge_config(),
-    'TransMorph-Small': get_2DTransMorphSmall_config(),
-    'TransMorph-Tiny': get_2DTransMorphTiny_config(),
+    'TransMorph-Lrn-Large': get_2DTransMorphLrnLarge_config()
 }
 
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 class NCCLoss(nn.Module):
     def __init__(self, win_size=9, eps=1e-5):
@@ -929,30 +888,6 @@ class NCCLoss(nn.Module):
         cc = (cross ** 2) / (I_var * J_var + self.eps)
         return torch.mean(cc)  # negative because we minimize loss
 
-
-import torch
-from torch.utils.data import Dataset
-import cv2
-from skimage.transform import warp
-from skimage.transform import AffineTransform as AFT
-import os
-from torch.utils.data import DataLoader
-
-def shift_crop_image(stat, mov , shifts):
-    stat = warp(stat, AFT(translation = shifts),order = 3)
-    mov = warp(mov, AFT(translation = np.negative(shifts)),order = 3)
-    x_shift_crop = int(np.floor(abs(shifts[0])))
-    y_shift_crop = int(np.floor(abs(shifts[1])))
-
-    y_slice = slice(y_shift_crop, -y_shift_crop if y_shift_crop != 0 else None)
-    x_slice = slice(x_shift_crop, -x_shift_crop if x_shift_crop != 0 else None)
-    temp_stat = stat[y_slice, x_slice]
-    temp_mov = mov[y_slice, x_slice]
-    return temp_stat, temp_mov
-
-import numpy as np
-import torch
-
 class BrightestCenterSquareCrop:
     def __call__(self, image):
         if isinstance(image, np.ndarray):
@@ -983,8 +918,6 @@ class BrightestCenterSquareCrop:
         cropped = image[:, top:top+crop_size, left:left+crop_size]
         return cropped
 
-import torch
-import torchvision.transforms.functional as TF
 
 class ResizeToMultiple:
     def __init__(self, divisor=8):
@@ -1000,6 +933,18 @@ class ResizeToMultiple:
         return TF.resize(tensor, [new_H, new_W])
 
 
+### MODIFIED
+def shift_crop_image(stat, mov , shifts):
+    # stat = warp(stat, AffineTransform(translation = shifts),order = 3)
+    mov = warp(mov, AFT(translation = shifts),order = 3)
+    x_shift_crop = int(np.floor(abs(shifts[0])))
+    y_shift_crop = int(np.floor(abs(shifts[1])))
+
+    y_slice = slice(y_shift_crop, -y_shift_crop if y_shift_crop != 0 else None)
+    x_slice = slice(x_shift_crop, -x_shift_crop if x_shift_crop != 0 else None)
+    temp_stat = stat[y_slice, x_slice]
+    temp_mov = mov[y_slice, x_slice]
+    return temp_stat, temp_mov
 
 class imagepairdataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -1015,15 +960,13 @@ class imagepairdataset(Dataset):
         image = cv2.imread(filepath, cv2.IMREAD_UNCHANGED)
 
         if np.random.randint(0,10)>7:
-            shift_vals = np.random.randint(-8,8,size=2)
+            shift_vals = np.array([np.random.uniform(-8,8),0])
             static, moving = shift_crop_image(image, image, shift_vals)
         else:
-            shift_vals = np.random.uniform(-5,5,size=2)
+            shift_vals = np.array([np.random.uniform(-2,2),0])
             static, moving = shift_crop_image(image, image, shift_vals)
-        # static = torch.from_numpy(static)
-        # moving = torch.from_numpy(moving)
         if self.transform:
             static, moving = self.transform(static), self.transform(moving)
 
-        return static, moving, shift_vals*2  # (moving, fixed)
+        return static, moving, shift_vals  # (moving, fixed)
 
